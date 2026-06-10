@@ -1,22 +1,34 @@
 import { useEffect, useRef, useState } from 'react'
-import { listSavedChars, deleteChar, importChar } from '../utils/storage'
+import { listChars, deleteChar, importChar } from '../utils/db'
+import { supabase } from '../lib/supabase'
 
-export default function MainMenu({ onNew, onLoad }) {
+export default function MainMenu({ session, onNew, onLoad }) {
   const [panel, setPanel] = useState(null) // null | 'saved'
   const [saved, setSaved] = useState([])
+  const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState(null)
   const fileRef = useRef(null)
 
+  const refresh = async () => {
+    setLoading(true); setErro(null)
+    try {
+      setSaved(await listChars())
+    } catch (err) {
+      setErro(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    setSaved(listSavedChars())
+    if (panel === 'saved') refresh()
   }, [panel])
 
   const handleImport = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      const char = await importChar(file)
-      onLoad(char)
+      onLoad(await importChar(file))
     } catch (err) {
       setErro(err.message)
     } finally {
@@ -24,20 +36,27 @@ export default function MainMenu({ onNew, onLoad }) {
     }
   }
 
-  const handleDelete = (id) => {
-    deleteChar(id)
-    setSaved(listSavedChars())
+  const handleDelete = async (id) => {
+    try {
+      await deleteChar(id)
+      refresh()
+    } catch (err) {
+      setErro(err.message)
+    }
   }
 
   return (
     <div className="menu-screen">
       <div className="menu-scanline" aria-hidden="true" />
 
+      <div className="menu-account no-print">
+        <span className="menu-account-mail">{session?.user?.email}</span>
+        <button className="menu-logout" onClick={() => supabase.auth.signOut()}>Sair</button>
+      </div>
+
       <div className="menu-logo">
         <div className="menu-logo-top">Ordo Realitas</div>
-        <h1 className="menu-logo-title">
-          <span>ORDEM</span> <span>PARANORMAL</span>
-        </h1>
+        <h1 className="menu-logo-title"><span>ORDEM</span> <span>PARANORMAL</span></h1>
         <div className="menu-logo-sub">Criador de Agente</div>
       </div>
 
@@ -71,7 +90,9 @@ export default function MainMenu({ onNew, onLoad }) {
 
       {panel === 'saved' && (
         <div className="menu-saved">
-          {saved.length === 0 ? (
+          {loading ? (
+            <div className="empty-state">Carregando…</div>
+          ) : saved.length === 0 ? (
             <div className="empty-state">Nenhum agente salvo ainda.</div>
           ) : (
             saved.map((c, i) => (

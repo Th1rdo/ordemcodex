@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { pontosDisponiveis, getSkillSlots, calcStats } from './utils/charCalc'
 import { isMaxNex } from './utils/levelup'
-import { saveChar } from './utils/storage'
+import { saveChar } from './utils/db'
+import { supabase } from './lib/supabase'
 import Header from './components/Header'
 import StepNav, { STEPS } from './components/StepNav'
 import StepConceito from './components/steps/StepConceito'
@@ -12,6 +13,7 @@ import StepPericias from './components/steps/StepPericias'
 import CharacterSheet from './components/sheet/CharacterSheet'
 import LevelUpModal from './components/LevelUpModal'
 import MainMenu from './components/MainMenu'
+import Login from './components/Login'
 
 const INITIAL_CHAR = {
   id: null,
@@ -39,13 +41,9 @@ const INITIAL_CHAR = {
   inventario: [],
 }
 
-// Migração de fichas antigas (preserva dados existentes)
 export function migrateChar(c) {
   const novo = { ...INITIAL_CHAR, ...c }
-  if (!c.suplementos) {
-    // fichas antigas tinham acesso aos poderes gerais (Sobrevivendo ao Horror)
-    novo.suplementos = ['sobrevivendo']
-  }
+  if (!c.suplementos) novo.suplementos = ['sobrevivendo']
   if (c.pvAtual == null && c.pvMax != null) novo.pvAtual = c.pvMax
   if (c.peAtual == null && c.peMax != null) novo.peAtual = c.peMax
   if (c.sanAtual == null && c.sanMax != null) novo.sanAtual = c.sanMax
@@ -64,36 +62,47 @@ function buildInitialStats(char) {
 
 function canAdvance(step, char) {
   switch (step) {
-    case 0:
-      return char.nome.trim().length > 0
-    case 1:
-      return pontosDisponiveis(char.atributos) >= 0
-    case 2:
-      return !!char.origem
-    case 3:
-      return !!char.classe
+    case 0: return char.nome.trim().length > 0
+    case 1: return pontosDisponiveis(char.atributos) >= 0
+    case 2: return !!char.origem
+    case 3: return !!char.classe
     case 4: {
       const { extraSlots, locked } = getSkillSlots(char)
       const chosen = char.pericias.filter((p) => !locked.includes(p))
       return chosen.length <= extraSlots
     }
-    default:
-      return true
+    default: return true
   }
 }
 
 export default function App() {
+  const [session, setSession] = useState(null)
+  const [authReady, setAuthReady] = useState(false)
   const [view, setView] = useState('menu') // 'menu' | 'create' | 'sheet'
   const [step, setStep] = useState(0)
   const [char, setChar] = useState(INITIAL_CHAR)
   const [showLevelUp, setShowLevelUp] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setAuthReady(true)
+    })
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s)
+      if (!s) { setView('menu'); setChar(INITIAL_CHAR) }
+    })
+    return () => sub.subscription.unsubscribe()
+  }, [])
 
   const canNext = useMemo(() => canAdvance(step, char), [step, char])
 
   const goNext = () => {
     if (!canNext) return
     if (step === 4) {
-      setChar((c) => buildInitialStats(c))
+      const finished = buildInitialStats(char)
+      setChar(finished)
+      saveChar(finished).then((id) => setChar((c) => ({ ...c, id }))).catch(() => {})
       setView('sheet')
       return
     }
@@ -108,7 +117,7 @@ export default function App() {
       if (updates.pvMax != null) next.pvAtual = (c.pvAtual ?? c.pvMax ?? 0) + (updates.pvMax - (c.pvMax ?? 0))
       if (updates.peMax != null) next.peAtual = (c.peAtual ?? c.peMax ?? 0) + (updates.peMax - (c.peMax ?? 0))
       if (updates.sanMax != null) next.sanAtual = (c.sanAtual ?? c.sanMax ?? 0) + (updates.sanMax - (c.sanMax ?? 0))
-      saveChar(next) // auto-save on level up
+      saveChar(next).then((id) => setChar((cc) => ({ ...cc, id }))).catch(() => {})
       return next
     })
     setShowLevelUp(false)
@@ -119,18 +128,21 @@ export default function App() {
     setStep(0)
     setView('create')
   }
-
   function handleLoad(loaded) {
     setChar(migrateChar(loaded))
     setView('sheet')
   }
+  function handleMenu() { setView('menu') }
 
-  function handleMenu() {
-    setView('menu')
+  if (!authReady) {
+    return <div className="app"><div className="boot-screen">⟁</div></div>
+  }
+  if (!session) {
+    return <Login />
   }
 
   if (view === 'menu') {
-    return <MainMenu onNew={handleNew} onLoad={handleLoad} />
+    return <MainMenu session={session} onNew={handleNew} onLoad={handleLoad} />
   }
 
   if (view === 'sheet') {
@@ -170,11 +182,9 @@ export default function App() {
     <div className="app view-anim">
       <Header compact onMenu={handleMenu} />
       <StepNav step={step} onGoStep={goStep} />
-
       <div key={step} className="step-anim">
         {renderStep()}
       </div>
-
       <div className="nav no-print">
         <button className="btn btn-ghost" onClick={step === 0 ? handleMenu : goPrev}>
           ← {step === 0 ? 'Menu' : 'Voltar'}

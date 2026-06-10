@@ -1663,3 +1663,71 @@ body {
   .sheet-nexrow { flex-wrap: wrap; }
   .sheet-nexrow .nex-bar-track { min-width: 100%; order: 3; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Auth — login / criar conta + barra de conta
+   ═══════════════════════════════════════════════════════════════ */
+.boot-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  font-size: 60px; color: var(--green); opacity: .5;
+  animation: glowPulse 1.4s ease-in-out infinite;
+}
+
+.auth-form {
+  width: min(380px, 92vw);
+  display: flex; flex-direction: column; gap: 4px;
+  background: linear-gradient(160deg, var(--surface2), var(--surface) 60%);
+  border: 1px solid var(--border-hover);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  padding: 26px 26px 28px;
+  box-shadow: 0 0 50px rgba(0,255,136,.1), 0 30px 70px rgba(0,0,0,.5);
+  animation: fadeUp .5s .3s cubic-bezier(.2,.7,.3,1) both;
+}
+.auth-tabs { display: flex; gap: 4px; margin-bottom: 18px; }
+.auth-tab {
+  flex: 1; appearance: none; cursor: pointer;
+  background: transparent; border: none; border-bottom: 2px solid var(--line);
+  color: var(--text-dim); font-family: 'Rajdhani', sans-serif; font-weight: 600;
+  font-size: 15px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 0;
+  transition: color .15s, border-color .15s;
+}
+.auth-tab:hover { color: var(--text); }
+.auth-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+.auth-label {
+  font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-dim); margin: 12px 0 5px;
+}
+.auth-input {
+  width: 100%; background: rgba(0,0,0,.35);
+  border: 1px solid var(--border); color: var(--text);
+  padding: 11px 13px; font-family: 'Rajdhani', sans-serif; font-size: 16px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.auth-input:focus { border-color: var(--green); box-shadow: 0 0 0 1px rgba(0,255,136,.25); }
+.auth-submit { margin-top: 22px; width: 100%; justify-content: center; padding: 12px; }
+.auth-msg { margin-top: 14px; font-size: 13px; line-height: 1.45; }
+.auth-msg--err { color: #ff9999; }
+.auth-msg--ok { color: var(--green); }
+
+.menu-account {
+  position: absolute; top: 22px; right: 24px;
+  display: flex; align-items: center; gap: 12px;
+  font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text-dim);
+  animation: fadeIn 1s 1s ease both;
+}
+.menu-account-mail { letter-spacing: 1px; }
+.menu-logout {
+  appearance: none; cursor: pointer; background: transparent;
+  border: 1px solid var(--border); color: var(--text-dim);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px;
+  text-transform: uppercase; padding: 6px 12px; transition: color .15s, border-color .15s;
+}
+.menu-logout:hover { color: var(--danger); border-color: rgba(255,68,68,.5); }
+.icon-btn.err { color: #04130a; background: var(--danger); border-color: var(--danger); }
+
+@media (max-width: 520px) {
+  .menu-account { position: static; justify-content: center; margin-bottom: 8px; }
+}

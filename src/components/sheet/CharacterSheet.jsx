@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NEX_SEQUENCE } from '../../data/progressao'
-import { saveChar, exportChar } from '../../utils/storage'
+import { saveChar, exportChar } from '../../utils/db'
 import CombatTab from './CombatTab'
 import PowersTab from './PowersTab'
 import RitualsTab from './RitualsTab'
@@ -49,11 +49,18 @@ export default function CharacterSheet({ char, setChar, onLevelUp, canLevelUp, o
   const [tab, setTab] = useState('combate')
   const [savedFlash, setSavedFlash] = useState(false)
 
-  const handleSave = () => {
-    const id = saveChar(char)
-    if (!char.id) setChar((c) => ({ ...c, id }))
-    setSavedFlash(true)
-    setTimeout(() => setSavedFlash(false), 1500)
+  const [saveErr, setSaveErr] = useState(false)
+  const handleSave = async () => {
+    try {
+      const id = await saveChar(char)
+      if (!char.id) setChar((c) => ({ ...c, id }))
+      setSaveErr(false)
+      setSavedFlash(true)
+      setTimeout(() => setSavedFlash(false), 1500)
+    } catch {
+      setSaveErr(true)
+      setTimeout(() => setSaveErr(false), 2500)
+    }
   }
 
   const setAtual = (key, max) => (v) =>
@@ -86,8 +93,8 @@ export default function CharacterSheet({ char, setChar, onLevelUp, canLevelUp, o
           <div className="sheet-actions no-print">
             {onMenu && <button className="icon-btn" onClick={onMenu} title="Menu principal">☰</button>}
             {onEdit && <button className="icon-btn" onClick={onEdit} title="Editar criação">✎</button>}
-            <button className={`icon-btn${savedFlash ? ' flash' : ''}`} onClick={handleSave} title="Salvar">
-              {savedFlash ? '✓' : '↓'}
+            <button className={`icon-btn${savedFlash ? ' flash' : ''}${saveErr ? ' err' : ''}`} onClick={handleSave} title="Salvar na conta">
+              {saveErr ? '✕' : savedFlash ? '✓' : '↓'}
             </button>
             <button className="icon-btn" onClick={() => exportChar(char)} title="Exportar JSON">⇪</button>
           </div>
